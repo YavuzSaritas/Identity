@@ -8,7 +8,7 @@ namespace IdentityExample.Models
 {
     public class User : IdentityUser
     {
-        public string FistName { get; set; }
+        public string FirstName { get; set; }
         public string LastName { get; set; }
     }
 }

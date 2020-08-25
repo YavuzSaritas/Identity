@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using IdentityExample.Entity;
+using IdentityExample.Factory;
 using IdentityExample.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -30,14 +31,22 @@ namespace IdentityExample
         {
             services.AddDbContext<ApplicationContext>(opts => opts.UseSqlServer(Configuration.GetConnectionString("SqlConnectionString")));
             services.AddScoped<ApplicationContext>();
+
             services.AddIdentity<User, IdentityRole>(opt =>
             {
                 opt.Password.RequiredLength = 7;
                 opt.Password.RequireDigit = true;
                 opt.Password.RequireUppercase = true;
+                /*Email daha önce kayýt edildiyse kayýt yapmaz. Bu güvenlik açýsýndan sýkýntý bir durumdur örnek olmasý macýyla yapýlmýþtýr*/
                 opt.User.RequireUniqueEmail = true;
             }).AddEntityFrameworkStores<ApplicationContext>()
             .AddDefaultTokenProviders();
+            /*Asp.Net Core Identity Login için default /Account/Login pathini kullanýr. Farklý path için örneðin /Authenticaiton/Login pathini kullanmak istiyorsak aþaðýdaki gibi guncelleme yapmak gerekiyor.*/
+            /*services.ConfigureApplicationCookie(o => o.LoginPath = "/Authentication/Login");*/
+
+            /*custom claims için*/
+            services.AddScoped<IUserClaimsPrincipalFactory<User>, CustomClaimsFactory>();
+
             services.AddAutoMapper(typeof(Startup));
             services.AddRazorPages();
         }
@@ -60,8 +69,10 @@ namespace IdentityExample
             app.UseStaticFiles();
 
             app.UseRouting();
-
+            /*Authentication dan sonra Authorization gelmesi gerekiyor*/
+            app.UseAuthentication();
             app.UseAuthorization();
+           
 
             app.UseEndpoints(endpoints =>
             {
