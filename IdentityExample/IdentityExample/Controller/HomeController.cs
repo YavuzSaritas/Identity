@@ -19,6 +19,7 @@ namespace IdentityExample.Controller
         public ActionResult Index()
         {
             var employeeList = _context.Employees.Where(p => !p.IsDeleted).ToList();
+            ViewData["Title"] = "Employee List";
             return View(employeeList);
         }
 

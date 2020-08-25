@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using IdentityExample.Entity;
 using IdentityExample.Models;
 using Microsoft.AspNetCore.Builder;
@@ -29,7 +30,15 @@ namespace IdentityExample
         {
             services.AddDbContext<ApplicationContext>(opts => opts.UseSqlServer(Configuration.GetConnectionString("SqlConnectionString")));
             services.AddScoped<ApplicationContext>();
-            services.AddIdentity<User, IdentityRole>().AddEntityFrameworkStores<ApplicationContext>();
+            services.AddIdentity<User, IdentityRole>(opt =>
+            {
+                opt.Password.RequiredLength = 7;
+                opt.Password.RequireDigit = true;
+                opt.Password.RequireUppercase = true;
+                opt.User.RequireUniqueEmail = true;
+            }).AddEntityFrameworkStores<ApplicationContext>()
+            .AddDefaultTokenProviders();
+            services.AddAutoMapper(typeof(Startup));
             services.AddRazorPages();
         }
 
