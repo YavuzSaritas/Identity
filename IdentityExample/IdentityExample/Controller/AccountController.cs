@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using EmailService;
+using EmailService.Interface;
 using IdentityExample.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -17,11 +19,13 @@ namespace IdentityExample.Controller
         private IMapper _mapper;
         private UserManager<User> _userManager;
         private SignInManager<User> _signInManager;
-        public AccountController(IMapper mapper , UserManager<User> userManager, SignInManager<User> signInManager)
+        private IMailSender _emailSender;
+        public AccountController(IMapper mapper, UserManager<User> userManager, SignInManager<User> signInManager, IMailSender emailSender)
         {
             _mapper = mapper;
             _userManager = userManager;
             _signInManager = signInManager;
+            _emailSender = emailSender;
         }
 
         [HttpGet]
@@ -37,9 +41,79 @@ namespace IdentityExample.Controller
             return View();
         }
 
+        [HttpGet]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(UserLoginModel userLoginModel, string returnUrl = null )
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordModel forgotPasswordModel)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(forgotPasswordModel);
+            }
+            var user = await _userManager.FindByEmailAsync(forgotPasswordModel.Email);
+            /*güvenlik amacıyla kullanıcı yok diye bir mesaj vermiyoruz onun yerine onay sayfasına gönderiyoruz*/
+            if (user == null)
+                return RedirectToAction(nameof(ForgotPasswordConfirmation));
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var callback = Url.Action(nameof(ResetPassword), nameof(AccountController), new { token, email = user.Email }, Request.Scheme);
+
+            var message = new Message(new string[] { forgotPasswordModel.Email }, "Reset Password", callback);
+            await _emailSender.SendMailAsync(message);
+
+            return RedirectToAction(nameof(ForgotPasswordConfirmation));
+        }
+
+        [HttpGet]
+        public IActionResult ResetPassword(string token, string email)
+        {
+            var model = new ResetPasswordModel { Token = token, Email = email };
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordModel resetPasswordModel)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(resetPasswordModel);
+            }
+            var user = await _userManager.FindByEmailAsync(resetPasswordModel.Email);
+            if (user == null)
+                RedirectToAction(nameof(ResetPasswordConfirmation));
+
+            var resetPasswordResult = await _userManager.ResetPasswordAsync(user, resetPasswordModel.Token, resetPasswordModel.Password);
+            if (!resetPasswordResult.Succeeded)
+            {
+                foreach (var error in resetPasswordResult.Errors)
+                {
+                    ModelState.TryAddModelError(error.Code, error.Description);
+                }
+                return View();
+            }
+            return RedirectToAction(nameof(ResetPasswordConfirmation));
+        }
+
+        [HttpGet]
+        public IActionResult ResetPasswordConfirmation(string token, string email)
+        {
+            return View();
+        }
+
+        public IActionResult ForgotPasswordConfirmation()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(UserLoginModel userLoginModel, string returnUrl = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
             if (!ModelState.IsValid)
@@ -87,7 +161,7 @@ namespace IdentityExample.Controller
                 return View(userModel);
             }
             var user = _mapper.Map<User>(userModel);
-            var result = await _userManager.CreateAsync(user,userModel.Password);
+            var result = await _userManager.CreateAsync(user, userModel.Password);
             if (!result.Succeeded)
             {
                 foreach (var error in result.Errors)

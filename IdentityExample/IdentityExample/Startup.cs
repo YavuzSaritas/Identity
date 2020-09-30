@@ -1,19 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AutoMapper;
+using EmailService;
+using EmailService.Interface;
 using IdentityExample.Entity;
 using IdentityExample.Factory;
 using IdentityExample.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System;
 
 namespace IdentityExample
 {
@@ -47,7 +45,17 @@ namespace IdentityExample
             /*custom claims için*/
             services.AddScoped<IUserClaimsPrincipalFactory<User>, CustomClaimsFactory>();
 
+            /*automapper*/
             services.AddAutoMapper(typeof(Startup));
+
+            /*Email*/
+            var emailConfig = Configuration.GetSection("EmailConfiguration").Get<EmailConfiguration>();
+            services.AddSingleton(emailConfig);
+            services.AddScoped<IMailSender, EmailSender>();
+
+            /*Reset Password Token Time*/
+            services.Configure<DataProtectionTokenProviderOptions>(p => p.TokenLifespan = TimeSpan.FromHours(2));
+
             services.AddRazorPages();
         }
 
